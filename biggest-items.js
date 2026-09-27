@@ -1,10 +1,10 @@
 // Read-only report of the largest items stored in CopyQ.
 //
-// The script never prints clipboard contents. It reports only tab names, row
-// numbers, MIME type names, and byte counts.
+// The script never prints clipboard contents. It reports only item numbers and
+// byte counts.
 
 var TAB_NAME = "&clipboard";
-var TOP_COUNT = 30;
+var TOP_COUNT = 20;
 
 function byteLength(data) {
     if (data === null || data === undefined) {
@@ -33,44 +33,6 @@ function formatBytes(bytes) {
     return value.toFixed(decimals) + " " + units[unit];
 }
 
-function itemKind(formats) {
-    var hasText = false;
-    var hasHtml = false;
-    var hasFiles = false;
-
-    for (var i = 0; i < formats.length; i++) {
-        var mimeType = formats[i].mimeType;
-
-        if (mimeType.indexOf("image/") === 0 || mimeType === "application/x-qt-image") {
-            return "image";
-        }
-        if (mimeType.indexOf("video/") === 0) {
-            return "video";
-        }
-        if (mimeType.indexOf("audio/") === 0) {
-            return "audio";
-        }
-        if (mimeType === "text/uri-list") {
-            hasFiles = true;
-        } else if (mimeType === "text/html") {
-            hasHtml = true;
-        } else if (mimeType === "text/plain") {
-            hasText = true;
-        }
-    }
-
-    if (hasFiles) {
-        return "files/URLs";
-    }
-    if (hasHtml) {
-        return "rich text";
-    }
-    if (hasText) {
-        return "text";
-    }
-    return "other";
-}
-
 function rememberLargest(largest, candidate) {
     largest.push(candidate);
     largest.sort(function (a, b) {
@@ -93,29 +55,16 @@ var initialItemCount = size();
 for (var row = 0; row < initialItemCount; row++) {
     try {
         var item = getItem(row);
-        var formats = [];
         var itemBytes = 0;
 
         for (var mimeType in item) {
-            var mimeBytes = byteLength(item[mimeType]);
-            itemBytes += mimeBytes;
-            formats.push({
-                mimeType: mimeType,
-                bytes: mimeBytes
-            });
+            itemBytes += byteLength(item[mimeType]);
         }
-
-        formats.sort(function (a, b) {
-            return b.bytes - a.bytes;
-        });
 
         totalBytes += itemBytes;
         rememberLargest(largest, {
-            row: row,
             itemNumber: row + 1,
-            bytes: itemBytes,
-            kind: itemKind(formats),
-            formats: formats
+            bytes: itemBytes
         });
 
         // Do not retain a reference to any clipboard payload after this row.
@@ -127,26 +76,25 @@ for (var row = 0; row < initialItemCount; row++) {
 
 itemCountChanged = size() !== initialItemCount;
 
+// The set contains the largest items, but present it in descending item-number
+// order so deletions can be performed from the bottom upward without changing
+// the remaining reported item numbers.
+largest.sort(function (a, b) {
+    return b.itemNumber - a.itemNumber;
+});
+
 print("CopyQ largest-item report (contents omitted)\n");
 print("Tab: \"" + TAB_NAME + "\"\n");
 print("Scanned " + initialItemCount + " item(s)\n");
 print("Total MIME payload measured: " + formatBytes(totalBytes) + "\n");
 
-print("\nTop " + Math.min(TOP_COUNT, largest.length) + " largest item(s):\n");
-for (var rank = 0; rank < largest.length; rank++) {
-    var result = largest[rank];
-    print(
-        "\n#" + (rank + 1) +
-        "  " + formatBytes(result.bytes) +
-        "  " + result.kind +
-        "  item=" + result.itemNumber +
-        "  script-row=" + result.row + "\n"
-    );
-
-    for (var formatIndex = 0; formatIndex < result.formats.length; formatIndex++) {
-        var format = result.formats[formatIndex];
-        print("    " + formatBytes(format.bytes) + "  " + format.mimeType + "\n");
-    }
+print(
+    "\n" + Math.min(TOP_COUNT, largest.length) +
+    " largest item(s), sorted by item number descending:\n"
+);
+for (var i = 0; i < largest.length; i++) {
+    var result = largest[i];
+    print("Item #" + result.itemNumber + ": " + formatBytes(result.bytes) + "\n");
 }
 
 if (failedItems > 0) {
@@ -156,7 +104,7 @@ if (failedItems > 0) {
 if (itemCountChanged) {
     print(
         "\nWARNING: The item count changed while scanning. Run the report again " +
-        "while clipboard history is idle before using row numbers.\n"
+        "while clipboard history is idle before using item numbers.\n"
     );
 }
 

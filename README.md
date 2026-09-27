@@ -2,14 +2,12 @@
 
 ## Find the largest items safely
 
-`biggest-items.js` scans the hardcoded `&clipboard` tab and prints only size
-metadata:
+`biggest-items.js` scans the hardcoded `&clipboard` tab, selects the 20 largest
+items by total MIME payload size, and prints them in descending item-number
+order. Its output contains only:
 
-- tab name
 - one-based item number
-- zero-based CopyQ script row
-- detected content kind
-- MIME format names and byte counts
+- total byte count
 
 It does **not** print text, images, or other clipboard contents, and it does not
 modify or delete anything.
@@ -21,8 +19,8 @@ Run it while you are not copying new items so that row numbers remain stable:
 ```
 
 Inspect the reported items in the CopyQ UI and delete only the entries you no
-longer need. `item=...` is the one-based number used by the older scripts;
-`script-row=...` is the zero-based row accepted by CopyQ scripting functions.
+longer need. The descending item-number order allows deleting from the bottom
+up without shifting the remaining reported item numbers.
 
 ## Move images out of the clipboard tab
 
