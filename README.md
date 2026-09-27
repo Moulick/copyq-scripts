@@ -41,6 +41,16 @@ with:
 This script changes live CopyQ data. It has intentionally not been run as part
 of repository validation.
 
+## Find the largest images
+
+After moving images, `biggest-images.js` scans only `&Images` and prints the 30
+largest items with their MIME byte counts and CopyQ row numbers. It does not
+print image contents or modify the tab.
+
+```sh
+/Applications/CopyQ.app/Contents/MacOS/CopyQ source "$PWD/biggest-images.js"
+```
+
 The other scripts in this folder are older experiments. In particular,
 `delete-big-items.js` and `delete-empty.js` delete entries automatically and
 should not be used for discovery. The old scripts also inspect only
