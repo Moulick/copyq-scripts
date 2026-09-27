@@ -10,9 +10,9 @@ or accidentally loading or printing the clipboard history.
 - The original problem was a CopyQ backup of roughly 600 MB. The goal is to
   identify unusually large live CopyQ items, inspect them in the CopyQ UI, and
   manually delete items that are no longer useful.
-- The backup directory is a sibling of this scripts directory at
-  `../new-work-laptop-m3`. **Do not inspect, parse, search, or dump its
-  contents.** It is a backup of a live CopyQ data set.
+- CopyQ backup directories can have different names and locations on each
+  laptop. **Do not inspect, parse, search, or dump their contents**, regardless
+  of where they are stored. They are backups of live CopyQ data sets.
 - Do not dump the live clipboard history or print clipboard content. It is very
   large and may contain sensitive text, HTML, images, and arbitrary other MIME
   formats.
@@ -28,7 +28,7 @@ or accidentally loading or printing the clipboard history.
 
 ## CopyQ layout and terminology
 
-- CopyQ executable on this Mac:
+- CopyQ executable on every laptop:
   `/Applications/CopyQ.app/Contents/MacOS/CopyQ`
 - Main tab: `&clipboard`
 - Image review tab: `&Images`
@@ -114,7 +114,7 @@ Purpose: move the 50 largest complete items from `&clipboard` to
 - It pauses monitoring only if monitoring was enabled when it started, then
   restores that original state.
 
-Run from this directory:
+Run from the directory containing the scripts:
 
 ```sh
 /Applications/CopyQ.app/Contents/MacOS/CopyQ source "$PWD/biggest-items.js"
