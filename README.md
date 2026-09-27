@@ -1,26 +1,39 @@
 # CopyQ cleanup scripts
 
-## Find the largest items safely
+## Move the largest items into a review tab
 
-`biggest-items.js` scans the hardcoded `&clipboard` tab, selects the 20 largest
-items by total MIME payload size, and prints them in descending item-number
-order. Its output contains only:
+`biggest-items.js` scans the hardcoded `&clipboard` tab, selects the 50 largest
+items by the sum of all their MIME payloads, and moves their complete data into
+`&Biggest 50`. The destination is ordered largest-first for review in the CopyQ
+UI.
 
-- one-based item number
-- total byte count
+The script pauses clipboard capture while scanning and moves source rows from
+bottom to top so their positions remain stable. It refuses to run when
+`&Biggest 50` already contains items; clear, delete, or rename that tab before
+starting another batch.
 
-It does **not** print text, images, or other clipboard contents, and it does not
-modify or delete anything.
-
-Run it while you are not copying new items so that row numbers remain stable:
+Run it with:
 
 ```sh
 /Applications/CopyQ.app/Contents/MacOS/CopyQ source "$PWD/biggest-items.js"
 ```
 
-Inspect the reported items in the CopyQ UI and delete only the entries you no
-longer need. The descending item-number order allows deleting from the bottom
-up without shifting the remaining reported item numbers.
+This script changes live CopyQ data. It inserts each complete item into the
+destination before removing it from `&clipboard`.
+
+## Repair leading commas in tags
+
+`fix-leading-comma-tags.js` is a one-time repair for tags such as
+`, 2026-09-27 12:24:31`. It changes only the
+`application/x-copyq-tags` field, producing `2026-09-27 12:24:31`, and leaves
+all other item formats untouched.
+
+```sh
+/Applications/CopyQ.app/Contents/MacOS/CopyQ source "$PWD/fix-leading-comma-tags.js"
+```
+
+This script changes live CopyQ data and has intentionally not been run as part
+of repository validation.
 
 ## Move images out of the clipboard tab
 
