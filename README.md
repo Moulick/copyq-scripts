@@ -23,10 +23,11 @@ destination before removing it from `&clipboard`.
 
 ## Repair leading commas in tags
 
-`fix-leading-comma-tags.js` is a one-time repair for tags such as
-`, 2026-09-27 12:24:31`. It changes only the
-`application/x-copyq-tags` field, producing `2026-09-27 12:24:31`, and leaves
-all other item formats untouched.
+`fix-leading-comma-tags.js` is a one-time repair for the old Store Copy Time
+command. It converts tags such as `, 2026-09-27 12:24:31` into
+`2026-09-27 12:24:31` and removes the redundant
+`application/x-copyq-user-copy-time` format. Text, HTML, images, and all other
+item formats remain untouched.
 
 ```sh
 /Applications/CopyQ.app/Contents/MacOS/CopyQ source "$PWD/fix-leading-comma-tags.js"
