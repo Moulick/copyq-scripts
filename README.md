@@ -24,6 +24,23 @@ Inspect the reported items in the CopyQ UI and delete only the entries you no
 longer need. `item=...` is the one-based number used by the older scripts;
 `script-row=...` is the zero-based row accepted by CopyQ scripting functions.
 
+## Move images out of the clipboard tab
+
+`move-images.js` moves every item containing an image MIME format from
+`&clipboard` to `&Images`. It checks MIME names before loading an item's full
+payload, processes source rows from bottom to top, and pauses clipboard capture
+while it runs so row numbers stay stable.
+
+The destination insertion is checked before the source item is removed. Run it
+with:
+
+```sh
+/Applications/CopyQ.app/Contents/MacOS/CopyQ source "$PWD/move-images.js"
+```
+
+This script changes live CopyQ data. It has intentionally not been run as part
+of repository validation.
+
 The other scripts in this folder are older experiments. In particular,
 `delete-big-items.js` and `delete-empty.js` delete entries automatically and
 should not be used for discovery. The old scripts also inspect only
