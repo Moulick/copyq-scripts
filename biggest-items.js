@@ -1,41 +1,196 @@
-// Script to find and print the top 10 biggest items in CopyQ
+// Move the largest items from the main CopyQ tab into a review tab.
+//
+// Item size is the sum of every stored MIME payload. Complete items are moved,
+// preserving all formats and metadata. The destination is sorted largest-first.
 
-// Get the total number of items in the current tab
-var totalItems = size();
-var items = [];
+var SOURCE_TAB = "&clipboard";
+var DESTINATION_TAB = "&Biggest 50";
+var MOVE_COUNT = 50;
 
-// Loop through all items and store their index and size
-// Using 1-based indexing for display
-for (var i = 0; i < totalItems; i++) {
-    // Get item data as text
-    var itemData = read(i, "text/plain");
+function byteLength(data) {
+    if (data === null || data === undefined) {
+        return 0;
+    }
 
-    // Store the item index (1-based) and its size
-    items.push({
-        index: i + 1, // Adjust to 1-based indexing
-        originalIndex: i, // Keep the original 0-based index for reading the data
-        size: itemData ? itemData.length : 0
+    if (typeof data.size === "function") {
+        return data.size();
+    }
+    return data.length || 0;
+}
+
+function rememberLargest(largest, candidate) {
+    largest.push(candidate);
+    largest.sort(function (a, b) {
+        if (a.bytes !== b.bytes) {
+            return b.bytes - a.bytes;
+        }
+        return b.row - a.row;
     });
+
+    if (largest.length > MOVE_COUNT) {
+        largest.pop();
+    }
 }
 
-// Sort items by size in descending order
-items.sort(function (a, b) {
-    return b.size - a.size;
-});
+function ensureEmptyDestination() {
+    var tabNames = tab();
+    var destinationExists = false;
 
-// Print the header with user info and timestamp
-print("\n==============================================");
-print("\nTop 10 Biggest Items in CopyQ Clipboard");
-print("\n==============================================");
+    for (var i = 0; i < tabNames.length; i++) {
+        if (tabNames[i] === DESTINATION_TAB) {
+            destinationExists = true;
+            break;
+        }
+    }
 
-// Print the top 10 items (or fewer if there aren't 10 items)
-var itemsToPrint = Math.min(10, items.length);
-for (var j = 0; j < itemsToPrint; j++) {
-    var item = items[j];
-    print("\nRank #" + (j + 1) + ": Item #" + item.index);
-    print("\nSize: " + item.size + " characters");
-    print("\n----------");
+    if (!destinationExists) {
+        tabNames.push(DESTINATION_TAB);
+        config("tabs", tabNames);
+    }
+
+    tab(DESTINATION_TAB);
+    if (size() !== 0) {
+        throw new Error(
+            "Destination tab \"" + DESTINATION_TAB +
+            "\" is not empty; clear or rename it before running this script"
+        );
+    }
 }
 
-// Print summary
-print("\nTotal items scanned: " + totalItems);
+function destinationRowFor(movedItems, bytes) {
+    var row = 0;
+
+    while (row < movedItems.length && movedItems[row].bytes >= bytes) {
+        row++;
+    }
+
+    return row;
+}
+
+if (SOURCE_TAB === DESTINATION_TAB) {
+    throw new Error("Source and destination tabs must be different");
+}
+
+var monitoringWasEnabled = monitoring();
+var sourceItemCount = 0;
+var largest = [];
+var scanFailures = [];
+var movedItems = [];
+var fatalError = null;
+var insertedBeforeFailure = false;
+
+if (monitoringWasEnabled) {
+    disable();
+}
+
+try {
+    try {
+        ensureEmptyDestination();
+
+        tab(SOURCE_TAB);
+        sourceItemCount = size();
+
+        // Scan all MIME payloads but retain only row numbers and byte totals.
+        for (var row = 0; row < sourceItemCount; row++) {
+            try {
+                var item = getItem(row);
+                var itemBytes = 0;
+
+                for (var mimeType in item) {
+                    itemBytes += byteLength(item[mimeType]);
+                }
+
+                rememberLargest(largest, {
+                    row: row,
+                    itemNumber: row + 1,
+                    bytes: itemBytes
+                });
+
+                item = null;
+            } catch (error) {
+                scanFailures.push({
+                    row: row,
+                    error: String(error)
+                });
+            }
+        }
+
+        if (scanFailures.length === 0) {
+            // Removing source rows from bottom to top prevents remaining source
+            // row numbers from shifting. Destination insertion positions keep
+            // the review tab ordered by size, largest first.
+            largest.sort(function (a, b) {
+                return b.row - a.row;
+            });
+
+            for (var i = 0; i < largest.length; i++) {
+                var candidate = largest[i];
+                insertedBeforeFailure = false;
+
+                tab(SOURCE_TAB);
+                var sourceItem = getItem(candidate.row);
+
+                tab(DESTINATION_TAB);
+                var destinationSizeBefore = size();
+                var destinationRow = destinationRowFor(movedItems, candidate.bytes);
+                write(destinationRow, sourceItem);
+                insertedBeforeFailure = true;
+
+                if (size() !== destinationSizeBefore + 1) {
+                    throw new Error("Destination item count did not increase");
+                }
+
+                tab(SOURCE_TAB);
+                remove(candidate.row);
+
+                movedItems.splice(destinationRow, 0, candidate);
+                sourceItem = null;
+            }
+        }
+    } catch (error) {
+        fatalError = String(error);
+    }
+} finally {
+    tab(SOURCE_TAB);
+
+    if (monitoringWasEnabled) {
+        enable();
+    }
+}
+
+print("Scanned " + sourceItemCount + " item(s) in \"" + SOURCE_TAB + "\".\n");
+
+if (scanFailures.length > 0) {
+    print(
+        "No items were moved because " + scanFailures.length +
+        " item(s) could not be measured:\n"
+    );
+
+    for (var failureIndex = 0; failureIndex < scanFailures.length; failureIndex++) {
+        var failure = scanFailures[failureIndex];
+        print("  script-row=" + failure.row + ": " + failure.error + "\n");
+    }
+
+    fail();
+}
+
+if (fatalError !== null) {
+    print(
+        "Moved " + movedItems.length + " item(s) before an error occurred: " +
+        fatalError + "\n"
+    );
+
+    if (insertedBeforeFailure) {
+        print(
+            "The last item may exist in both tabs because destination insertion " +
+            "succeeded before the source operation failed.\n"
+        );
+    }
+
+    fail();
+}
+
+print(
+    "Moved " + movedItems.length + " largest item(s) to \"" +
+    DESTINATION_TAB + "\", ordered largest first.\n"
+);
